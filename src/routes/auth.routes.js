@@ -6,6 +6,7 @@ const controller = require("../controllers/auth.controller");
 const corsOptions = {
   origin: [
     "http://localhost:5173",
+    "https://facesonfaces.vercel.app"
    
   ],
   credentials: true,

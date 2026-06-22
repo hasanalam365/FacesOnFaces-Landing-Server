@@ -2,16 +2,13 @@ const express = require("express");
 
 const router = express.Router();
 
-const {
-  createEnrollment,
-  getEnrollments,
-} = require("../controllers/enrollment.controller");
+const controller = require(
+  "../controllers/enrollment.controller"
+);
 
-
-
-router.get(
-  "/enrollments",
-  getEnrollments
+router.post(
+  "/create-enrollment",
+  controller.createEnrollment
 );
 
 module.exports = router;

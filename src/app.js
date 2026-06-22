@@ -33,10 +33,8 @@ app.use(express.json());
    ROUTES
 ======================= */
 app.use("/", require("./routes/auth.routes"));
-
 app.use("/", require("./routes/payments.routes"));
-
-
+app.use("/", require("./routes/enrollment.routes"));
 /* =======================
    ROOT
 ======================= */

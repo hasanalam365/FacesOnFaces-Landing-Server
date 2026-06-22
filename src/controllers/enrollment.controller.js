@@ -1,137 +1,105 @@
 const client = require("../config/db");
 const stripe = require("../config/stripe");
 const transporter = require("../config/mailer");
+const { validationResult } = require("express-validator");
+const sanitizeHtml = require("sanitize-html");
 
 const enrollmentsCollection = client
-.db("facesOnFaces")
-.collection("enrollments");
+  .db("facesOnFaces")
+  .collection("enrollments");
+
+// Amount Stripe থেকে নেওয়া হবে, client থেকে না
+const COURSE_FEE_DISPLAY = "£1,099";
+const COURSE_NAME = "14 Certificate Foundation Course";
 
 exports.createEnrollment = async (req, res) => {
-try {
-const {
-paymentIntentId,
-name,
-email,
-phone,
-course,
-course_fee,
-message,
-} = req.body;
+  try {
+    //  Input validation errors চেক
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
+    const { paymentIntentId, name, email, phone, message } = req.body;
 
+    if (!paymentIntentId) {
+      return res.status(400).json({ message: "Payment Intent ID is required" });
+    }
 
+    //  Duplicate enrollment চেক
+    const existing = await enrollmentsCollection.findOne({ paymentIntentId });
+    if (existing) {
+      return res.status(409).json({ message: "This payment has already been used for enrollment" });
+    }
 
-if (!paymentIntentId) {
-  return res.status(400).send({
-    message: "Payment Intent ID is required",
-  });
-}
+    //  Stripe থেকে payment verify
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-// Verify payment from Stripe
-const paymentIntent =
-  await stripe.paymentIntents.retrieve(
-    paymentIntentId
-  );
+    if (paymentIntent.status !== "succeeded") {
+      return res.status(400).json({ message: "Payment not completed" });
+    }
 
-if (paymentIntent.status !== "succeeded") {
-  return res.status(400).send({
-    message: "Payment not completed",
-  });
-}
+    //  Amount backend থেকে নেওয়া হচ্ছে — client পাঠানো course_fee ব্যবহার নেই
+    const paidAmount = paymentIntent.amount;
+    const paidCurrency = paymentIntent.currency;
 
-const enrollment = {
-  name,
-  email,
-  phone,
-  course,
-  course_fee,
-  message,
-  paymentIntentId,
-  paymentStatus: "Paid",
-  amount: paymentIntent.amount / 100,
-  currency: paymentIntent.currency,
-  enrolledAt: new Date(),
-};
+    //  Input sanitize (XSS prevention)
+    const safeName = sanitizeHtml(name, { allowedTags: [], allowedAttributes: {} });
+    const safeEmail = sanitizeHtml(email, { allowedTags: [], allowedAttributes: {} });
+    const safePhone = sanitizeHtml(phone, { allowedTags: [], allowedAttributes: {} });
+    const safeMessage = sanitizeHtml(message || "", { allowedTags: [], allowedAttributes: {} });
 
-const result =
-  await enrollmentsCollection.insertOne(
-    enrollment
-  );
+    const enrollment = {
+      name: safeName,
+      email: safeEmail,
+      phone: safePhone,
+      course: COURSE_NAME,           
+      course_fee: COURSE_FEE_DISPLAY, 
+      message: safeMessage,
+      paymentIntentId,
+      paymentStatus: "Paid",
+      amount: paidAmount / 100,      
+      currency: paidCurrency,
+      enrolledAt: new Date(),
+    };
 
- 
+    const result = await enrollmentsCollection.insertOne(enrollment);
 
-// Admin Email
-await transporter.sendMail({
-  from: process.env.EMAIL_USER,
-  to: process.env.EMAIL_USER,
+    // Admin Email
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_USER,
+      subject: "New Course Enrollment",
+      html: `
+        <h2>New Enrollment Received</h2>
+        <p><strong>Name:</strong> ${safeName}</p>
+        <p><strong>Email:</strong> ${safeEmail}</p>
+        <p><strong>Phone:</strong> ${safePhone}</p>
+        <p><strong>Course:</strong> ${COURSE_NAME}</p>
+        <p><strong>Amount Paid:</strong> £${paidAmount / 100} ${paidCurrency.toUpperCase()}</p>
+        <p><strong>Payment Intent ID:</strong> ${paymentIntentId}</p>
+        <p><strong>Message:</strong> ${safeMessage || "No message provided"}</p>
+      `,
+    });
 
-  subject: "New Course Enrollment",
+    // Student Email
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: safeEmail,
+      subject: "Enrollment Confirmed",
+      html: `
+        <h2>Thank You ${safeName}</h2>
+        <p>Your enrollment has been received successfully.</p>
+        <p><strong>Course:</strong> ${COURSE_NAME}</p>
+        <p><strong>Amount Paid:</strong> £${paidAmount / 100}</p>
+        <p>We will contact you shortly with the next steps.</p>
+      `,
+    });
 
-  html: `
-    <h2>New Enrollment Received</h2>
+    res.json({ success: true, insertedId: result.insertedId });
 
-    <p><strong>Name:</strong> ${name}</p>
-    <p><strong>Email:</strong> ${email}</p>
-    <p><strong>Phone:</strong> ${phone}</p>
-
-    <p><strong>Course:</strong> ${course}</p>
-
-    <p><strong>Course Fee:</strong> ${course_fee}</p>
-
-    <p><strong>Payment Status:</strong> Paid</p>
-
-    <p><strong>Payment Intent ID:</strong> ${paymentIntentId}</p>
-
-    <p><strong>Message:</strong></p>
-
-    <p>${message || "No message provided"}</p>
-  `,
-});
-
-// Student Confirmation Email
-await transporter.sendMail({
-  from: process.env.EMAIL_USER,
-  to: email,
-
-  subject: "Enrollment Confirmed",
-
-  html: `
-    <h2>Thank You ${name}</h2>
-
-    <p>
-      Your enrollment has been received
-      successfully.
-    </p>
-
-    <p>
-      <strong>Course:</strong> ${course}
-    </p>
-
-    <p>
-      <strong>Amount Paid:</strong> ${course_fee}
-    </p>
-
-    <p>
-      We will contact you shortly with
-      the next steps.
-    </p>
-  `,
-});
-
-res.send({
-  success: true,
-  insertedId: result.insertedId,
-});
-
-
-} catch (error) {
-console.error(error);
-
-
-res.status(500).send({
-  message: error.message,
-});
-
-
-}
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" }); 
+  }
 };

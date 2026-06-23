@@ -2,21 +2,23 @@ const stripe = require("../config/stripe");
 
 exports.createPaymentIntent = async (req, res) => {
   try {
-    const paymentIntent =
-      await stripe.paymentIntents.create({
-        amount: 109900, // £1099
-        currency: "gbp",
-        automatic_payment_methods: {
-          enabled: true,
-        },
-      });
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: 109900, // £1099 in pence
+      currency: "gbp",
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
 
-    res.send({
+    res.status(200).json({
       clientSecret: paymentIntent.client_secret,
     });
   } catch (error) {
-    res.status(500).send({
-      message: error.message,
+    // Production এ real error message client কে দেখাবে না
+    console.error("Stripe PaymentIntent error:", error.message);
+
+    res.status(500).json({
+      message: "Payment setup failed. Please try again.",
     });
   }
 };

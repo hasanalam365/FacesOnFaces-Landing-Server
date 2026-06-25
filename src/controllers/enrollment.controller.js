@@ -10,7 +10,7 @@ const enrollmentsCollection = client
 
 // Amount Stripe থেকে নেওয়া হবে, client থেকে না
 const COURSE_FEE_DISPLAY = "£1,099";
-const COURSE_NAME = "14 Certificate Foundation Course";
+const COURSE_NAME = "14 Certificate Fast-Track Course";
 
 exports.createEnrollment = async (req, res) => {
   try {
@@ -57,6 +57,9 @@ exports.createEnrollment = async (req, res) => {
       course_fee: COURSE_FEE_DISPLAY, 
       message: safeMessage,
       paymentIntentId,
+      
+enrollmentType: 'Pay in Full'
+,
       paymentStatus: "Paid",
       amount: paidAmount / 100,      
       currency: paidCurrency,
@@ -76,6 +79,7 @@ exports.createEnrollment = async (req, res) => {
         <p><strong>Email:</strong> ${safeEmail}</p>
         <p><strong>Phone:</strong> ${safePhone}</p>
         <p><strong>Course:</strong> ${COURSE_NAME}</p>
+        <p><strong>Enrollment Type:</strong> Pay in Full</p>
         <p><strong>Amount Paid:</strong> £${paidAmount / 100} ${paidCurrency.toUpperCase()}</p>
         <p><strong>Payment Intent ID:</strong> ${paymentIntentId}</p>
         <p><strong>Message:</strong> ${safeMessage || "No message provided"}</p>

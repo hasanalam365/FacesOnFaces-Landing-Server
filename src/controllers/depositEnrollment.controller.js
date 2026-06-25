@@ -8,7 +8,7 @@ const depositEnrollmentsCollection = client
   .db("facesOnFaces")
   .collection("depositEnrollments");
 
-const COURSE_NAME = "14 Certificate Foundation Course";
+const COURSE_NAME = "14 Certificate Fast-Track Course";
 
 const DEPOSIT_AMOUNT_DISPLAY = "£699";
 const REMAINING_BALANCE = "£400";
@@ -127,6 +127,7 @@ exports.createDepositEnrollment = async (req, res) => {
         <p><strong>Phone:</strong> ${safePhone}</p>
 
         <p><strong>Course:</strong> ${COURSE_NAME}</p>
+        <p><strong>Enrollment Type:</strong> Deposit</p>
 
         <p><strong>Deposit Paid:</strong> £${
           paymentIntent.amount / 100

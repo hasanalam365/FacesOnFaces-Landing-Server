@@ -47,7 +47,7 @@ exports.createEnrollment = async (req, res) => {
     const safeName = sanitizeHtml(name, { allowedTags: [], allowedAttributes: {} });
     const safeEmail = sanitizeHtml(email, { allowedTags: [], allowedAttributes: {} });
     const safePhone = sanitizeHtml(phone, { allowedTags: [], allowedAttributes: {} });
-    const safeMessage = sanitizeHtml(message || "", { allowedTags: [], allowedAttributes: {} });
+   
 
     const enrollment = {
       name: safeName,
@@ -55,7 +55,7 @@ exports.createEnrollment = async (req, res) => {
       phone: safePhone,
       course: COURSE_NAME,           
       course_fee: COURSE_FEE_DISPLAY, 
-      message: safeMessage,
+      
       paymentIntentId,
       
 enrollmentType: 'Pay in Full'
@@ -82,7 +82,7 @@ enrollmentType: 'Pay in Full'
         <p><strong>Enrollment Type:</strong> Pay in Full</p>
         <p><strong>Amount Paid:</strong> £${paidAmount / 100} ${paidCurrency.toUpperCase()}</p>
         <p><strong>Payment Intent ID:</strong> ${paymentIntentId}</p>
-        <p><strong>Message:</strong> ${safeMessage || "No message provided"}</p>
+       
       `,
     });
 

@@ -8,7 +8,7 @@ const enrollmentValidation = [
   body("email").trim().isEmail().normalizeEmail(),
   body("phone").trim().notEmpty().isMobilePhone().isLength({ max: 20 }),
   body("paymentIntentId").trim().notEmpty().matches(/^pi_[a-zA-Z0-9_]+$/), 
-  body("message").optional().trim().isLength({ max: 1000 }).escape(),
+ 
 ];
 
 router.post("/create-enrollment", enrollmentValidation, controller.createEnrollment);

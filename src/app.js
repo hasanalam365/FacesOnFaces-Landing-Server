@@ -72,6 +72,7 @@ app.use(express.json({ limit: "10kb" }));
 app.use("/", require("./routes/auth.routes"));
 app.use("/", strictLimiter, require("./routes/payments.routes"));
 app.use("/", strictLimiter, require("./routes/enrollment.routes"));
+app.use("/",strictLimiter,require("./routes/depositEnrollment.routes"));
 
 /* =======================
    ROOT

@@ -22,3 +22,30 @@ exports.createPaymentIntent = async (req, res) => {
     });
   }
 };
+
+exports.createDepositPaymentIntent =
+  async (req, res) => {
+    try {
+      const paymentIntent =
+        await stripe.paymentIntents.create({
+          amount: 69900,
+          currency: "gbp",
+
+          automatic_payment_methods: {
+            enabled: true,
+          },
+        });
+
+      res.status(200).json({
+        clientSecret:
+          paymentIntent.client_secret,
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        message:
+          "Failed to create payment intent",
+      });
+    }
+  };

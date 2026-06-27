@@ -28,7 +28,7 @@ exports.createDepositPaymentIntent =
     try {
       const paymentIntent =
         await stripe.paymentIntents.create({
-          amount: 69900,
+          amount: 25000,
           currency: "gbp",
 
           automatic_payment_methods: {

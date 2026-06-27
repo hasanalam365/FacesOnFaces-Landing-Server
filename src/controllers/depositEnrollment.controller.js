@@ -54,8 +54,9 @@ exports.createDepositEnrollment = async (req, res) => {
     const paymentIntent =
       await stripe.paymentIntents.retrieve(
         paymentIntentId
+        
       );
-
+console.log(paymentIntent.amount);
     if (
       paymentIntent.status !== "succeeded"
     ) {

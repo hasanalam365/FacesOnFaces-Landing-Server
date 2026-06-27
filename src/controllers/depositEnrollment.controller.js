@@ -10,8 +10,8 @@ const depositEnrollmentsCollection = client
 
 const COURSE_NAME = "14 Certificate Fast-Track Course";
 
-const DEPOSIT_AMOUNT_DISPLAY = "£699";
-const REMAINING_BALANCE = "£400";
+const DEPOSIT_AMOUNT_DISPLAY = "£250";
+const REMAINING_BALANCE = "£849";
 
 exports.createDepositEnrollment = async (req, res) => {
   try {

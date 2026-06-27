@@ -31,7 +31,7 @@ exports.createDepositPaymentIntent = async (req, res) => {
 exports.createSubscriptionPaymentIntent = async (req, res) => {
   try {
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: 10000,
+      amount: 25000,
       currency: "gbp",
       automatic_payment_methods: { enabled: true },
     });

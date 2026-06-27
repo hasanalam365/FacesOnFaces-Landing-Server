@@ -90,7 +90,7 @@ enrollmentType: 'Pay in Full'
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: safeEmail,
-      subject: "Enrollment Confirmed",
+      subject: "New Enrollment Pay in Full",
       html: `
         <h2>Thank You ${safeName}</h2>
         <p>Your enrollment has been received successfully.</p>

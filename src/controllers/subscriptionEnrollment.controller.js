@@ -9,10 +9,9 @@ const subscriptionEnrollmentsCollection = client
   .collection("subscriptionEnrollments");
 
 const COURSE_NAME = "14 Certificate Fast-Track Course";
-const FIRST_PAYMENT_DISPLAY = "£100";
+const FIRST_PAYMENT_DISPLAY = "£250";
 const MONTHLY_AMOUNT = "£100";
-const TOTAL_AMOUNT = "£1,200";
-const DURATION = "12 months";
+
 
 exports.createSubscriptionEnrollment = async (req, res) => {
   try {
@@ -49,8 +48,7 @@ exports.createSubscriptionEnrollment = async (req, res) => {
       enrollmentType: "Subscription",
       firstPaymentPaid: FIRST_PAYMENT_DISPLAY,
       monthlyAmount: MONTHLY_AMOUNT,
-      totalAmount: TOTAL_AMOUNT,
-      duration: DURATION,
+    
       status: "Pending Agreement",
       agreementSent: false,
       paymentIntentId,
@@ -75,8 +73,7 @@ exports.createSubscriptionEnrollment = async (req, res) => {
         <p><strong>Enrollment Type:</strong> Subscription</p>
         <p><strong>First Payment Paid:</strong> £${paymentIntent.amount / 100}</p>
         <p><strong>Monthly Amount:</strong> ${MONTHLY_AMOUNT}</p>
-        <p><strong>Total Amount:</strong> ${TOTAL_AMOUNT}</p>
-        <p><strong>Duration:</strong> ${DURATION}</p>
+        
         <p><strong>Status:</strong> Pending Agreement</p>
         <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
         <br/>
@@ -97,7 +94,7 @@ exports.createSubscriptionEnrollment = async (req, res) => {
         <p><strong>Payment Plan:</strong> Subscription</p>
         <p><strong>First Payment Paid:</strong> £${paymentIntent.amount / 100}</p>
         <p><strong>Monthly Payment:</strong> ${MONTHLY_AMOUNT} × 11 remaining months</p>
-        <p><strong>Total Amount:</strong> ${TOTAL_AMOUNT}</p>
+       
         <br/>
         <p><strong>Next Steps:</strong></p>
         <ol>

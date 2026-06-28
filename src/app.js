@@ -74,6 +74,7 @@ app.use("/", strictLimiter, require("./routes/payments.routes"));
 app.use("/", strictLimiter, require("./routes/enrollment.routes"));
 app.use("/",strictLimiter,require("./routes/depositEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionEnrollment.routes"));
+app.use("/", strictLimiter, require("./routes/subscriptionPreEnrollment.routes"));
 
 /* =======================
    ROOT

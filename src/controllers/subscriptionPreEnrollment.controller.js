@@ -2,7 +2,7 @@ const client = require("../config/db");
 const transporter = require("../config/mailer");
 const sanitizeHtml = require("sanitize-html");
 const { ObjectId } = require("mongodb");
-const { sendAgreement } = require("../config/signwell");
+const { sendAgreement, getDocumentStatus } = require("../config/signwell");
 const { validationResult } = require("express-validator");
 
 const subscriptionEnrollmentsCollection = client
@@ -13,13 +13,6 @@ const ALLOWED_DOC_TYPES = ["nid", "passport", "driving_license", "electricity_bi
 const ALLOWED_MIMETYPES = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
-/**
- * POST /create-subscription-pre-enrollment
- * - Validates identity document
- * - Stores pre-enrollment record (status: "Pending Signature")
- * - Sends SignWell agreement to student
- * Returns { enrollmentId }
- */
 exports.createSubscriptionPreEnrollment = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -29,18 +22,15 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
 
     const { name, email, phone, documentType, documentNumber } = req.body;
 
-    // Validate document type
     if (!ALLOWED_DOC_TYPES.includes(documentType)) {
       return res.status(400).json({ message: "Invalid document type." });
     }
 
-    // Validate uploaded files
     const frontFile = req.files?.frontFile?.[0];
     if (!frontFile) {
       return res.status(400).json({ message: "Document upload is required." });
     }
 
-    // Re-validate mimetype and size server-side (defence in depth)
     if (!ALLOWED_MIMETYPES.includes(frontFile.mimetype)) {
       return res.status(400).json({ message: "Invalid file type." });
     }
@@ -71,18 +61,10 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       signwellDoc = await sendAgreement({
         name: safeName,
         email: safeEmail,
-        templateFields: {
-          student_phone: { value: safePhone },
-          course_name: { value: "14 Certificate Fast-Track Course" },
-          first_payment: { value: "£250" },
-          monthly_payment: { value: "£100" },
-        },
       });
     } catch (swErr) {
-      console.error("SignWell send error:", swErr);
-      return res
-        .status(502)
-        .json({ message: "Could not send agreement. Please try again." });
+      console.error("SignWell send error:", swErr.message);
+      return res.status(502).json({ message: "Could not send agreement. Please try again." });
     }
 
     // Save pre-enrollment to DB
@@ -96,7 +78,6 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       identityDocument: {
         type: documentType,
         number: safeDocNumber,
-        // Store file metadata only; raw buffers are not persisted to DB
         frontFileName: frontFile.originalname,
         frontFileMimeType: frontFile.mimetype,
         frontFileSizeBytes: frontFile.size,
@@ -114,7 +95,7 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
 
     const result = await subscriptionEnrollmentsCollection.insertOne(preEnrollment);
 
-    // Internal admin notification
+    // Admin notification
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.EMAIL_USER,
@@ -142,11 +123,6 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
   }
 };
 
-/**
- * GET /subscription-agreement-status/:enrollmentId
- * Polls SignWell to check if the document has been signed.
- * Updates DB when signed.
- */
 exports.getAgreementStatus = async (req, res) => {
   try {
     const { enrollmentId } = req.params;
@@ -163,13 +139,10 @@ exports.getAgreementStatus = async (req, res) => {
       return res.status(404).json({ message: "Enrollment not found." });
     }
 
-    // Already confirmed as signed in DB
     if (enrollment.agreementSigned) {
       return res.status(200).json({ signed: true });
     }
 
-    // Poll SignWell for latest status
-    const { getDocumentStatus } = require("../config/signwell");
     const signwellDoc = await getDocumentStatus(enrollment.signwellDocumentId);
 
     const isSigned =
@@ -194,6 +167,43 @@ exports.getAgreementStatus = async (req, res) => {
     return res.status(200).json({ signed: isSigned });
   } catch (error) {
     console.error("Agreement status check error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.saveSignature = async (req, res) => {
+  try {
+    const { enrollmentId, signature } = req.body;
+
+    if (!enrollmentId || !ObjectId.isValid(enrollmentId)) {
+      return res.status(400).json({ message: "Invalid enrollment ID." });
+    }
+
+    if (!signature || !signature.startsWith("data:image/png;base64,")) {
+      return res.status(400).json({ message: "Invalid signature." });
+    }
+
+    // signature size check (~200KB max)
+    if (signature.length > 300000) {
+      return res.status(400).json({ message: "Signature too large." });
+    }
+
+    await subscriptionEnrollmentsCollection.updateOne(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $set: {
+          agreementSigned: true,
+          signatureData: signature,
+          signedAt: new Date(),
+          updatedAt: new Date(),
+          status: "Signed — Pending Payment",
+        },
+      }
+    );
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Save signature error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

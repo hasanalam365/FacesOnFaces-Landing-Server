@@ -31,5 +31,11 @@ router.get(
   statusValidation,
   controller.getAgreementStatus
 );
+router.post(
+  "/save-subscription-signature",
+  body("enrollmentId").trim().notEmpty(),
+  body("signature").trim().notEmpty(),
+  controller.saveSignature
+);
 
 module.exports = router;

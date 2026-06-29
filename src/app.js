@@ -53,7 +53,7 @@ const globalLimiter = rateLimit({
 
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 100, 
   message: { error: "Too many requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -64,7 +64,7 @@ app.use(globalLimiter);
 /* =======================
    MIDDLEWARE
 ======================= */
-app.use(express.json({ limit: "10kb" }));
+app.use(express.json({ limit: "5mb" }));
 
 /* =======================
    ROUTES

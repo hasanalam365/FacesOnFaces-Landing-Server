@@ -1,9 +1,9 @@
 const client = require("../config/db");
-const transporter = require("../config/mailer");
 const sanitizeHtml = require("sanitize-html");
 const { ObjectId } = require("mongodb");
-const { sendAgreement, getDocumentStatus } = require("../config/signwell");
 const { validationResult } = require("express-validator");
+const axios = require("axios");
+const FormData = require("form-data");
 
 const subscriptionEnrollmentsCollection = client
   .db("facesOnFaces")
@@ -12,6 +12,32 @@ const subscriptionEnrollmentsCollection = client
 const ALLOWED_DOC_TYPES = ["nid", "passport", "driving_license", "electricity_bill"];
 const ALLOWED_MIMETYPES = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+
+// ImgBB তে image upload করে URL return করে
+const uploadToImgBB = async (fileBuffer, fileName, mimeType) => {
+  if (mimeType === "application/pdf") {
+    return null;
+  }
+
+  const base64 = fileBuffer.toString("base64");
+  
+  // ImgBB form-data এর বদলে URLSearchParams দিয়ে পাঠাও
+  const params = new URLSearchParams();
+  params.append("image", base64);
+  params.append("name", fileName);
+
+  const response = await axios.post(
+    `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+    params.toString(),
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    }
+  );
+
+  return response.data?.data?.url || null;
+};
 
 exports.createSubscriptionPreEnrollment = async (req, res) => {
   try {
@@ -55,19 +81,34 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       ? sanitizeHtml(documentNumber, { allowedTags: [], allowedAttributes: {} })
       : null;
 
-    // Send agreement via SignWell
-    let signwellDoc;
+    // ImgBB তে document upload
+    let frontImageUrl = null;
+    let backImageUrl = null;
+
     try {
-      signwellDoc = await sendAgreement({
-        name: safeName,
-        email: safeEmail,
-      });
-    } catch (swErr) {
-      console.error("SignWell send error:", swErr.message);
-      return res.status(502).json({ message: "Could not send agreement. Please try again." });
+      frontImageUrl = await uploadToImgBB(
+        frontFile.buffer,
+        frontFile.originalname,
+        frontFile.mimetype
+      );
+    } catch (imgErr) {
+      console.error("ImgBB front upload error:", imgErr.message);
+      // upload fail হলেও চালিয়ে যাবে, URL null থাকবে
     }
 
-    // Save pre-enrollment to DB
+    if (backFile) {
+      try {
+        backImageUrl = await uploadToImgBB(
+          backFile.buffer,
+          backFile.originalname,
+          backFile.mimetype
+        );
+      } catch (imgErr) {
+        console.error("ImgBB back upload error:", imgErr.message);
+      }
+    }
+
+    // DB তে save — payment complete হওয়ার আগে শুধু এটুকুই
     const preEnrollment = {
       name: safeName,
       email: safeEmail,
@@ -81,11 +122,11 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
         frontFileName: frontFile.originalname,
         frontFileMimeType: frontFile.mimetype,
         frontFileSizeBytes: frontFile.size,
+        frontImageUrl: frontImageUrl,
         backFileName: backFile?.originalname || null,
         backFileMimeType: backFile?.mimetype || null,
+        backImageUrl: backImageUrl,
       },
-      signwellDocumentId: signwellDoc.id,
-      signwellStatus: signwellDoc.status,
       agreementSigned: false,
       paymentIntentId: null,
       paymentStatus: "Pending",
@@ -95,78 +136,13 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
 
     const result = await subscriptionEnrollmentsCollection.insertOne(preEnrollment);
 
-    // Admin notification
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.EMAIL_USER,
-      subject: "New Subscription Pre-Enrollment (Pending Signature)",
-      html: `
-        <h2>New Pre-Enrollment — Awaiting Agreement Signature</h2>
-        <p><strong>Name:</strong> ${safeName}</p>
-        <p><strong>Email:</strong> ${safeEmail}</p>
-        <p><strong>Phone:</strong> ${safePhone}</p>
-        <p><strong>Document Type:</strong> ${documentType}</p>
-        <p><strong>Document Number:</strong> ${safeDocNumber || "N/A"}</p>
-        <p><strong>SignWell Document ID:</strong> ${signwellDoc.id}</p>
-        <p><strong>Status:</strong> Pending Signature</p>
-        <p>The subscription agreement has been sent to the student's email via SignWell.</p>
-      `,
-    });
-
+    // এখানে কোনো email নেই — payment complete হলে email যাবে
     return res.status(200).json({
       success: true,
       enrollmentId: result.insertedId.toString(),
     });
   } catch (error) {
     console.error("Pre-enrollment error:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-exports.getAgreementStatus = async (req, res) => {
-  try {
-    const { enrollmentId } = req.params;
-
-    if (!ObjectId.isValid(enrollmentId)) {
-      return res.status(400).json({ message: "Invalid enrollment ID." });
-    }
-
-    const enrollment = await subscriptionEnrollmentsCollection.findOne({
-      _id: new ObjectId(enrollmentId),
-    });
-
-    if (!enrollment) {
-      return res.status(404).json({ message: "Enrollment not found." });
-    }
-
-    if (enrollment.agreementSigned) {
-      return res.status(200).json({ signed: true });
-    }
-
-    const signwellDoc = await getDocumentStatus(enrollment.signwellDocumentId);
-
-    const isSigned =
-      signwellDoc.status === "completed" ||
-      signwellDoc.completed === true ||
-      signwellDoc.status === "signed";
-
-    if (isSigned) {
-      await subscriptionEnrollmentsCollection.updateOne(
-        { _id: new ObjectId(enrollmentId) },
-        {
-          $set: {
-            agreementSigned: true,
-            signwellStatus: signwellDoc.status,
-            signedAt: new Date(),
-            updatedAt: new Date(),
-          },
-        }
-      );
-    }
-
-    return res.status(200).json({ signed: isSigned });
-  } catch (error) {
-    console.error("Agreement status check error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -183,9 +159,28 @@ exports.saveSignature = async (req, res) => {
       return res.status(400).json({ message: "Invalid signature." });
     }
 
-    // signature size check (~200KB max)
-    if (signature.length > 300000) {
+    if (signature.length > 2000000) {
       return res.status(400).json({ message: "Signature too large." });
+    }
+
+    // Base64 থেকে ImgBB তে upload
+    let signatureUrl = null;
+    try {
+      const base64Data = signature.replace("data:image/png;base64,", "");
+      const params = new URLSearchParams();
+      params.append("image", base64Data);
+      params.append("name", `signature_${enrollmentId}`);
+
+      const imgbbRes = await axios.post(
+        `https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`,
+        params.toString(),
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+
+      signatureUrl = imgbbRes.data?.data?.url || null;
+    } catch (imgErr) {
+      console.error("ImgBB signature upload error:", imgErr.message);
+      // upload fail হলেও চালিয়ে যাবে
     }
 
     await subscriptionEnrollmentsCollection.updateOne(
@@ -193,7 +188,7 @@ exports.saveSignature = async (req, res) => {
       {
         $set: {
           agreementSigned: true,
-          signatureData: signature,
+          signatureUrl: signatureUrl,        // ImgBB URL
           signedAt: new Date(),
           updatedAt: new Date(),
           status: "Signed — Pending Payment",

@@ -77,6 +77,65 @@ const createLead = async (req, res) => {
             `
         });
 
+        await transporter.sendMail({
+  from: `"Faces On Faces Academy" <${process.env.EMAIL_USER}>`,
+  to: email,
+  subject: "🎉 Thank You for Contacting Faces On Faces Academy",
+
+  html: `
+    <div style="max-width:600px;margin:auto;font-family:Arial,sans-serif;background:#ffffff;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">
+
+      <div style="background:#06b6d4;padding:30px;text-align:center;">
+        <h1 style="color:#fff;margin:0;">
+          Faces On Faces Academy
+        </h1>
+      </div>
+
+      <div style="padding:35px;">
+
+        <h2 style="color:#111;">
+          Hello ${fullName},
+        </h2>
+
+        <p style="font-size:16px;line-height:1.8;color:#555;">
+          Thank you for contacting
+          <strong>Faces On Faces Academy</strong>.
+        </p>
+
+        <p style="font-size:16px;line-height:1.8;color:#555;">
+          We have successfully received your enquiry and one of our
+          advisors will contact you as soon as possible.
+        </p>
+
+        <div style="background:#f8f8f8;padding:20px;border-radius:10px;margin:25px 0;">
+
+          <h3 style="margin-top:0;">
+            Your Details
+          </h3>
+
+          <p><strong>Name:</strong> ${fullName}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Phone:</strong> ${phone}</p>
+          <p><strong>Preferred Contact:</strong> ${preferredContact}</p>
+          <p><strong>Best Time:</strong> ${bestTime}</p>
+
+        </div>
+
+        <p style="font-size:16px;color:#555;">
+          We appreciate your interest in our training courses.
+        </p>
+
+        <p style="margin-top:35px;">
+          Best Regards,<br>
+          <strong>Faces On Faces Academy</strong>
+        </p>
+
+      </div>
+
+    </div>
+  `
+});
+
         res.json({
 
             success:true,

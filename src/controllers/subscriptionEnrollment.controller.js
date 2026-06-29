@@ -4,6 +4,7 @@ const transporter = require("../config/mailer");
 const { validationResult } = require("express-validator");
 const sanitizeHtml = require("sanitize-html");
 const { ObjectId } = require("mongodb");
+const path = require("path");
 
 const subscriptionEnrollmentsCollection = client
   .db("facesOnFaces")
@@ -93,36 +94,115 @@ exports.createSubscriptionEnrollment = async (req, res) => {
         <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
         ${enrollmentId ? `<p><strong>Pre-Enrollment ID:</strong> ${enrollmentId}</p>` : ""}
         <br/>
-        <p>Agreement was signed via SignWell. Please set up the direct debit for the remaining 11 months.</p>
+        
       `,
     });
 
     // Send student confirmation email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: safeEmail,
-      subject: "First Payment Confirmed — Faces On Faces Academy",
-      html: `
-        <h2>Thank You, ${safeName}!</h2>
-        <p>Your first monthly payment has been received and your agreement is signed.</p>
-        <br/>
-        <h3>Enrollment Summary</h3>
-        <p><strong>Course:</strong> ${COURSE_NAME}</p>
-        <p><strong>Payment Plan:</strong> Subscription</p>
-        <p><strong>First Payment Paid:</strong> £${paymentIntent.amount / 100}</p>
-        <p><strong>Monthly Payment:</strong> ${MONTHLY_AMOUNT} × 11 remaining months</p>
-        <br/>
-        <p><strong>Next Steps:</strong></p>
-        <ol>
-          <li>Our team will review your enrollment within 24 hours.</li>
-          <li>We will set up your direct debit for the remaining 11 months.</li>
-          <li>You will receive confirmation of your start date by email.</li>
-        </ol>
-        <br/>
-        <p>If you have any questions, please contact us at support@facesonfaces.com</p>
-        <p>— Faces On Faces Academy Team</p>
-      `,
-    });
+    
+ await transporter.sendMail({
+  from: `"Faces On Faces Academy" <${process.env.EMAIL_USER}>`,
+  to: safeEmail,
+  subject: "🎉 Enrollment Confirmed – Faces On Faces Academy",
+
+  html: `
+    <div style="max-width:600px;margin:auto;font-family:Arial,sans-serif;background:#ffffff;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">
+
+      <div style="background:#06b6d4;padding:30px;text-align:center;">
+        <h1 style="color:#fff;margin:0;">
+          Faces On Faces Academy
+        </h1>
+
+        <p style="color:#dff9ff;margin-top:8px;">
+          Subscription Enrollment Confirmation
+        </p>
+      </div>
+
+      <div style="padding:35px;">
+
+        <h2 style="color:#111;">
+          Congratulations ${safeName}! 🎉
+        </h2>
+
+        <p style="font-size:16px;line-height:1.8;color:#555;">
+          Thank you for choosing
+          <strong>Faces On Faces Academy</strong>.
+        </p>
+
+        <p style="font-size:16px;line-height:1.8;color:#555;">
+          We're delighted to confirm that your subscription enrollment has been successfully received.
+          Your initial payment has been processed successfully.
+        </p>
+
+        <div style="background:#f8f8f8;padding:20px;border-radius:10px;margin:25px 0;">
+
+          <h3 style="margin-top:0;">
+            Enrollment Details
+          </h3>
+
+          <p><strong>Name:</strong> ${safeName}</p>
+
+          <p><strong>Email:</strong> ${safeEmail}</p>
+
+          <p><strong>Phone:</strong> ${safePhone}</p>
+
+          <p><strong>Course:</strong> ${COURSE_NAME}</p>
+
+          <p><strong>Enrollment Type:</strong> Subscription</p>
+
+          <p><strong>Initial Payment:</strong> ${FIRST_PAYMENT_DISPLAY}</p>
+
+          <p><strong>Monthly Payment:</strong> ${MONTHLY_AMOUNT}</p>
+
+          <p>
+            <strong>Payment Status:</strong>
+            <span style="color:#16a34a;font-weight:bold;">
+              Paid ✅
+            </span>
+          </p>
+
+        </div>
+
+        <h3 style="color:#111;">
+          What Happens Next?
+        </h3>
+
+        <p style="font-size:16px;line-height:1.8;color:#555;">
+          • Our admissions team will review your enrollment.<br>
+          • Your Subscription Agreement is attached with this email.<br>
+          • We'll set up your remaining monthly payments.<br>
+          • You'll receive your course schedule and joining instructions shortly.
+        </p>
+
+        <p style="font-size:16px;line-height:1.8;color:#555;">
+          Please keep the attached Subscription Agreement for your records.
+        </p>
+
+        <p style="font-size:16px;line-height:1.8;color:#555;">
+          We're excited to welcome you to the Faces On Faces Academy family and look forward to helping you begin your journey in the aesthetics industry.
+        </p>
+
+        <p style="margin-top:35px;">
+          Best Regards,<br>
+          <strong>Faces On Faces Academy</strong>
+        </p>
+
+      </div>
+
+    </div>
+  `,
+
+  attachments: [
+    {
+      filename: "Subscription Agreement [Faces On Faces].pdf",
+     path: path.join(
+  __dirname,
+  "../agreements/Subscription Agreement [Faces On Faces].pdf"
+),
+      contentType: "application/pdf",
+    },
+  ],
+});
 
     return res.status(200).json({ success: true });
   } catch (error) {

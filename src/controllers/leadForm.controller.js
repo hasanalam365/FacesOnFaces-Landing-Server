@@ -1,5 +1,6 @@
 const client = require("../config/db");
 const transporter = require("../config/mailer");
+const { saveLeadToSheet } = require("../utils/saveLeadToSheet"); // ← NEW
 
 const leadCollection = client
     .db("facesOnFaces")
@@ -13,7 +14,7 @@ const createLead = async (req, res) => {
             fullName,
             email,
             phone,
-            preferredContact,
+           
             bestTime,
             message
         } = req.body;
@@ -35,8 +36,7 @@ const createLead = async (req, res) => {
             fullName,
             email,
             phone,
-            preferredContact:
-                preferredContact || "Phone",
+           
 
             bestTime,
 
@@ -49,6 +49,12 @@ const createLead = async (req, res) => {
         };
 
         const result = await leadCollection.insertOne(lead);
+
+        // ── Google Sheets এ append (non-blocking, error isolated) ── NEW
+        saveLeadToSheet(lead).catch((err) => {
+            console.error("⚠️  Google Sheets append failed:", err.message);
+            // এই error MongoDB save বা email এর উপর কোনো প্রভাব ফেলবে না
+        });
 
         await transporter.sendMail({
 
@@ -68,7 +74,7 @@ const createLead = async (req, res) => {
 
                 <p><b>Phone:</b> ${phone}</p>
 
-                <p><b>Preferred Contact:</b> ${preferredContact}</p>
+               
 
                 <p><b>Best Time:</b> ${bestTime}</p>
 
@@ -116,7 +122,7 @@ const createLead = async (req, res) => {
           <p><strong>Name:</strong> ${fullName}</p>
           <p><strong>Email:</strong> ${email}</p>
           <p><strong>Phone:</strong> ${phone}</p>
-          <p><strong>Preferred Contact:</strong> ${preferredContact}</p>
+          
           <p><strong>Best Time:</strong> ${bestTime}</p>
 
         </div>

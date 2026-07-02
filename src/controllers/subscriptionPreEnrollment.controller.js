@@ -147,6 +147,32 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
   }
 };
 
+
+exports.checkAgreementStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ signed: false });
+    }
+
+    const enrollment = await subscriptionEnrollmentsCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ signed: false });
+    }
+
+    return res.status(200).json({
+      signed: !!enrollment.agreementSigned,
+    });
+  } catch (err) {
+    console.error("Check agreement error:", err);
+    return res.status(500).json({ signed: false });
+  }
+};
+
 exports.saveSignature = async (req, res) => {
   try {
     const { enrollmentId, signature } = req.body;
@@ -199,6 +225,73 @@ exports.saveSignature = async (req, res) => {
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error("Save signature error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.handleSignWellWebhook = async (req, res) => {
+  try {
+    const event = req.body;
+
+    console.log("SignWell webhook:", event);
+
+    // যখন document complete হবে
+    if (event.event_type === "document.completed") {
+      const documentId = event.document_id;
+
+      const result = await subscriptionEnrollmentsCollection.updateOne(
+        { signwellDocumentId: documentId },
+        {
+          $set: {
+            agreementSigned: true,
+            signedAt: new Date(),
+            status: "Signed — Pending Payment",
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      console.log("Webhook updated:", result.modifiedCount);
+    }
+
+    return res.status(200).send("OK");
+  } catch (err) {
+    console.error("Webhook error:", err);
+    return res.status(500).send("Error");
+  }
+};
+
+exports.confirmAgreementSigned = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid enrollment ID." });
+    }
+
+    const enrollment = await subscriptionEnrollmentsCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ message: "Enrollment not found." });
+    }
+
+    await subscriptionEnrollmentsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          agreementSigned: true,
+          signedAt: new Date(),
+          status: "Signed — Pending Payment",
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("Confirm agreement error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

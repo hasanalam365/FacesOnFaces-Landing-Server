@@ -45,7 +45,7 @@ exports.createSubscriptionEnrollment = async (req, res) => {
     const safeEmail = sanitizeHtml(email, { allowedTags: [], allowedAttributes: {} });
     const safePhone = sanitizeHtml(phone, { allowedTags: [], allowedAttributes: {} });
 
-    // If enrollmentId provided, verify agreement was signed before allowing payment completion
+   // If enrollmentId provided, update the pre-enrollment record with payment info
     if (enrollmentId && ObjectId.isValid(enrollmentId)) {
       const preEnrollment = await subscriptionEnrollmentsCollection.findOne({
         _id: new ObjectId(enrollmentId),
@@ -53,18 +53,14 @@ exports.createSubscriptionEnrollment = async (req, res) => {
       if (!preEnrollment) {
         return res.status(404).json({ message: "Pre-enrollment record not found." });
       }
-      if (!preEnrollment.agreementSigned) {
-        return res
-          .status(403)
-          .json({ message: "Agreement must be signed before payment." });
-      }
 
       // Update existing pre-enrollment record with payment info
       await subscriptionEnrollmentsCollection.updateOne(
         { _id: new ObjectId(enrollmentId) },
         {
           $set: {
-            status: "Pending Agreement",
+            status: "Payment Complete", // agreement no longer tracked from backend
+            agreementSigned: true,      // reflect that user confirmed signing on frontend
             paymentIntentId,
             paymentStatus: "Paid",
             amount: paymentIntent.amount / 100,

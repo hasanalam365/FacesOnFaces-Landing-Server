@@ -1,9 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const { body } = require("express-validator");
+
 const controller = require("../controllers/subscriptionPreEnrollment.controller");
 const handleDocumentUpload = require("../middlewares/uploadDocument");
 
+/* =========================
+   VALIDATION
+========================= */
 const preEnrollmentValidation = [
   body("name").trim().notEmpty().isLength({ max: 100 }).escape(),
   body("email").trim().isEmail().normalizeEmail(),
@@ -15,6 +19,9 @@ const preEnrollmentValidation = [
   body("documentNumber").optional().trim().isLength({ max: 50 }).escape(),
 ];
 
+/* =========================
+   PRE ENROLLMENT
+========================= */
 router.post(
   "/create-subscription-pre-enrollment",
   handleDocumentUpload,
@@ -22,11 +29,32 @@ router.post(
   controller.createSubscriptionPreEnrollment
 );
 
+/* =========================
+   SAVE SIGNATURE (OLD OPTIONAL)
+========================= */
 router.post(
   "/save-subscription-signature",
   body("enrollmentId").trim().notEmpty(),
   body("signature").trim().notEmpty(),
   controller.saveSignature
+);
+
+/* =========================
+   CHECK AGREEMENT STATUS (NEW)
+========================= */
+router.get(
+  "/check-agreement-status/:id",
+  controller.checkAgreementStatus
+);
+
+router.post("/mark-agreement-signed/:id", controller.createSubscriptionPreEnrollment);
+
+/* =========================
+   SIGNWELL WEBHOOK (NEW)
+========================= */
+router.post(
+  "/signwell/webhook",
+  controller.handleSignWellWebhook
 );
 
 module.exports = router;

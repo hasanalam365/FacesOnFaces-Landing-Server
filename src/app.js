@@ -12,7 +12,9 @@ const app = express();
 const corsOptions = {
   origin: [
     'http://localhost:5173',
-    'https://facesonfaces.vercel.app'
+    'https://facesonfaces.vercel.app',
+    "https://www.facesonfaces.co.uk",
+    "https:facesonfaces.co.uk"
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -76,6 +78,7 @@ app.use("/",strictLimiter,require("./routes/depositEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionPreEnrollment.routes"));
 app.use( "/", strictLimiter,require("./routes/leadForm.routes"));
+app.use("/", require("./routes/signwell.routes"));
 
 /* =======================
    ROOT

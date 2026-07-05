@@ -40,17 +40,21 @@ router.post(
 );
 
 /* =========================
-   CHECK AGREEMENT STATUS (NEW)
+   CHECK AGREEMENT STATUS
 ========================= */
 router.get(
   "/check-agreement-status/:id",
   controller.checkAgreementStatus
 );
 
-router.post("/mark-agreement-signed/:id", controller.createSubscriptionPreEnrollment);
+/* =========================
+   CONFIRM AGREEMENT SIGNED
+   (was incorrectly pointed at createSubscriptionPreEnrollment before)
+========================= */
+router.post("/mark-agreement-signed/:id", controller.confirmAgreementSigned);
 
 /* =========================
-   SIGNWELL WEBHOOK (NEW)
+   SIGNWELL WEBHOOK
 ========================= */
 router.post(
   "/signwell/webhook",

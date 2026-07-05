@@ -55,13 +55,20 @@ const globalLimiter = rateLimit({
 
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100, 
+  max: 100,
   message: { error: "Too many requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 app.use(globalLimiter);
+
+/* =======================
+   GOCARDLESS WEBHOOK — MUST COME BEFORE express.json()
+   GoCardless signs the raw request body. If express.json() parses it
+   first, the raw bytes are lost and signature verification will fail.
+======================= */
+app.use("/", require("./routes/gocardless.webhook.routes"));
 
 /* =======================
    MIDDLEWARE
@@ -74,11 +81,12 @@ app.use(express.json({ limit: "5mb" }));
 app.use("/", require("./routes/auth.routes"));
 app.use("/", strictLimiter, require("./routes/payments.routes"));
 app.use("/", strictLimiter, require("./routes/enrollment.routes"));
-app.use("/",strictLimiter,require("./routes/depositEnrollment.routes"));
+app.use("/", strictLimiter, require("./routes/depositEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionPreEnrollment.routes"));
-app.use( "/", strictLimiter,require("./routes/leadForm.routes"));
+app.use("/", strictLimiter, require("./routes/leadForm.routes"));
 app.use("/", require("./routes/signwell.routes"));
+app.use("/", require("./routes/gocardless.routes"));
 
 /* =======================
    ROOT

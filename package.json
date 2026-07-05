@@ -26,6 +26,7 @@
     "express-rate-limit": "^8.5.2",
     "express-validator": "^7.3.2",
     "form-data": "^4.0.6",
+    "gocardless-nodejs": "^8.4.0",
     "googleapis": "^173.0.0",
     "helmet": "^8.2.0",
     "hpp": "^0.2.3",

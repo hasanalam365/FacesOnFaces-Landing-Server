@@ -51,6 +51,15 @@ const globalLimiter = rateLimit({
   message: { error: "Too many requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Polling ও webhook endpoint-কে global limit থেকে exempt করা হলো
+    // (এগুলোর নিজস্ব আলাদা limiter/protection আছে — polling route এ pollingLimiter,
+    // webhook route এ secret-token protection + SignWell API re-verification)
+    return (
+      req.path.startsWith("/subscription-agreement-status") ||
+      req.path.startsWith("/signwell-agreement-webhook")
+    );
+  },
 });
 
 const strictLimiter = rateLimit({
@@ -87,6 +96,7 @@ app.use("/", strictLimiter, require("./routes/subscriptionPreEnrollment.routes")
 app.use("/", strictLimiter, require("./routes/leadForm.routes"));
 app.use("/", require("./routes/signwell.routes"));
 app.use("/", require("./routes/gocardless.routes"));
+app.use("/", require("./routes/subscriptionAgreement.routes"));
 
 /* =======================
    ROOT

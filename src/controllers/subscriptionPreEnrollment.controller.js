@@ -13,15 +13,13 @@ const ALLOWED_DOC_TYPES = ["nid", "passport", "driving_license", "electricity_bi
 const ALLOWED_MIMETYPES = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
-// ImgBB তে image upload করে URL return করে
 const uploadToImgBB = async (fileBuffer, fileName, mimeType) => {
   if (mimeType === "application/pdf") {
     return null;
   }
 
   const base64 = fileBuffer.toString("base64");
-  
-  // ImgBB form-data এর বদলে URLSearchParams দিয়ে পাঠাও
+
   const params = new URLSearchParams();
   params.append("image", base64);
   params.append("name", fileName);
@@ -46,7 +44,22 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, phone, documentType, documentNumber } = req.body;
+    const { name, email, phone, documentType, documentNumber, enrollmentId } = req.body;
+
+    if (enrollmentId) {
+      if (!ObjectId.isValid(enrollmentId)) {
+        return res.status(400).json({ message: "Invalid enrollment reference." });
+      }
+      const existing = await subscriptionEnrollmentsCollection.findOne({
+        _id: new ObjectId(enrollmentId),
+      });
+      if (!existing) {
+        return res.status(404).json({ message: "Enrollment not found." });
+      }
+      if (!existing.agreementSigned) {
+        return res.status(403).json({ message: "Please sign the agreement before continuing." });
+      }
+    }
 
     if (!ALLOWED_DOC_TYPES.includes(documentType)) {
       return res.status(400).json({ message: "Invalid document type." });
@@ -81,7 +94,6 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       ? sanitizeHtml(documentNumber, { allowedTags: [], allowedAttributes: {} })
       : null;
 
-    // ImgBB তে document upload
     let frontImageUrl = null;
     let backImageUrl = null;
 
@@ -93,7 +105,6 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       );
     } catch (imgErr) {
       console.error("ImgBB front upload error:", imgErr.message);
-      // upload fail হলেও চালিয়ে যাবে, URL null থাকবে
     }
 
     if (backFile) {
@@ -108,7 +119,6 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       }
     }
 
-    // DB তে save — payment complete হওয়ার আগে শুধু এটুকুই
     const preEnrollment = {
       name: safeName,
       email: safeEmail,
@@ -134,9 +144,21 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       updatedAt: new Date(),
     };
 
-    const result = await subscriptionEnrollmentsCollection.insertOne(preEnrollment);
+    if (enrollmentId && ObjectId.isValid(enrollmentId)) {
+      await subscriptionEnrollmentsCollection.updateOne(
+        { _id: new ObjectId(enrollmentId) },
+        {
+          $set: {
+            identityDocument: preEnrollment.identityDocument,
+            status: "Pending Payment",
+            updatedAt: new Date(),
+          },
+        }
+      );
+      return res.status(200).json({ success: true, enrollmentId });
+    }
 
-    // এখানে কোনো email নেই — payment complete হলে email যাবে
+    const result = await subscriptionEnrollmentsCollection.insertOne(preEnrollment);
     return res.status(200).json({
       success: true,
       enrollmentId: result.insertedId.toString(),
@@ -146,7 +168,6 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 exports.checkAgreementStatus = async (req, res) => {
   try {
@@ -189,7 +210,6 @@ exports.saveSignature = async (req, res) => {
       return res.status(400).json({ message: "Signature too large." });
     }
 
-    // Base64 থেকে ImgBB তে upload
     let signatureUrl = null;
     try {
       const base64Data = signature.replace("data:image/png;base64,", "");
@@ -206,7 +226,6 @@ exports.saveSignature = async (req, res) => {
       signatureUrl = imgbbRes.data?.data?.url || null;
     } catch (imgErr) {
       console.error("ImgBB signature upload error:", imgErr.message);
-      // upload fail হলেও চালিয়ে যাবে
     }
 
     await subscriptionEnrollmentsCollection.updateOne(
@@ -214,7 +233,7 @@ exports.saveSignature = async (req, res) => {
       {
         $set: {
           agreementSigned: true,
-          signatureUrl: signatureUrl,        // ImgBB URL
+          signatureUrl: signatureUrl,
           signedAt: new Date(),
           updatedAt: new Date(),
           status: "Signed — Pending Payment",
@@ -235,7 +254,6 @@ exports.handleSignWellWebhook = async (req, res) => {
 
     console.log("SignWell webhook:", event);
 
-    // যখন document complete হবে
     if (event.event_type === "document.completed") {
       const documentId = event.document_id;
 

@@ -88,15 +88,16 @@ app.use(express.json({ limit: "5mb" }));
    ROUTES
 ======================= */
 app.use("/", require("./routes/auth.routes"));
+app.use("/", require("./routes/signwell.routes"));
+app.use("/", require("./routes/gocardless.routes"));
+app.use("/", require("./routes/subscriptionAgreement.routes"));
 app.use("/", strictLimiter, require("./routes/payments.routes"));
 app.use("/", strictLimiter, require("./routes/enrollment.routes"));
 app.use("/", strictLimiter, require("./routes/depositEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionPreEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/leadForm.routes"));
-app.use("/", require("./routes/signwell.routes"));
-app.use("/", require("./routes/gocardless.routes"));
-app.use("/", require("./routes/subscriptionAgreement.routes"));
+
 
 /* =======================
    ROOT

@@ -4,6 +4,7 @@ const { ObjectId } = require("mongodb");
 const { validationResult } = require("express-validator");
 const signwellService = require("../services/signwellService");
 const { WEBHOOK_SECRET } = require("../config/signwell");
+const axios = require("axios");
 
 const subscriptionEnrollmentsCollection = client
   .db("facesOnFaces")
@@ -69,10 +70,13 @@ exports.createAgreement = async (req, res) => {
   }
 };
 
-// STEP 2: Frontend polling করে জানবে সাইন হয়েছে কিনা
+
+
+// STEP 2: Frontend polling করে জানবে সাইন হয়েছে কিনা (Local + Production Dynamic Fix)
 exports.checkAgreementStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ signed: false });
     }
@@ -85,13 +89,53 @@ exports.checkAgreementStatus = async (req, res) => {
       return res.status(404).json({ signed: false });
     }
 
+    // 1. Production optimization check (Case-insensitive)
+    if (
+      enrollment.agreementSigned === true || 
+      (enrollment.status && enrollment.status.toLowerCase() === "completed")
+    ) {
+      return res.status(200).json({ signed: true });
+    }
+
+    if (enrollment.signwellDocumentId) {
+      try {
+        const signwellRes = await axios.get(
+          `https://www.signwell.com/api/v1/documents/${enrollment.signwellDocumentId}/`,
+          {
+            headers: {
+              "X-Api-Key": process.env.SIGNWELL_API_KEY,
+            },
+          }
+        );
+
+        // 🔥 Case-insensitive check `.toLowerCase()` jog kora holo jate 'Completed' match hoy
+        if (
+          signwellRes.data && 
+          signwellRes.data.status && 
+          signwellRes.data.status.toLowerCase() === "completed"
+        ) {
+          
+          // Database properly update kora hocchhe
+          await subscriptionEnrollmentsCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { agreementSigned: true, status: "Completed" } }
+          );
+
+          // CRITICAL FIX: Ekhane return kore response pathiye deya holo jate loop break hoy!
+          return res.status(200).json({ signed: true });
+        }
+      } catch (apiErr) {
+        console.error("SignWell API Error:", apiErr.message);
+      }
+    }
+
     return res.status(200).json({ signed: !!enrollment.agreementSigned });
+
   } catch (err) {
     console.error("Check agreement status error:", err);
     return res.status(500).json({ signed: false });
   }
 };
-
 // STEP 3: SignWell webhook — কিন্তু webhook body কে blindly trust করা হয় না।
 // secret token URL এ match করলেই তারপর SignWell API কে সরাসরি জিজ্ঞেস করা হয়
 // document আসলেই "Completed" কিনা। এই re-verification টাই মূল security।

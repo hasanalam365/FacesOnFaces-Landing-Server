@@ -10,7 +10,7 @@ const subscriptionEnrollmentsCollection = client
   .db("facesOnFaces")
   .collection("subscriptionEnrollments");
 
-// STEP 1: Form submit করলেই enrollment record + SignWell document তৈরি হয়
+// STEP 1: unchanged except we now also return signingUrl
 exports.createAgreement = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -43,7 +43,8 @@ exports.createAgreement = async (req, res) => {
     const result = await subscriptionEnrollmentsCollection.insertOne(enrollmentDoc);
     const enrollmentId = result.insertedId.toString();
 
-    let documentId;
+    let documentId = null;
+    let signingUrl = null;
     try {
       const doc = await signwellService.createAgreementDocument({
         name: safeName,
@@ -51,11 +52,22 @@ exports.createAgreement = async (req, res) => {
         enrollmentId,
       });
       documentId = doc.documentId;
+      signingUrl = doc.signingUrl;
     } catch (swErr) {
-  console.error(
-    "SignWell create document error:",
-    JSON.stringify(swErr.response?.data, null, 2) || swErr.message
-  );
+      // Log the FULL SignWell error so we can actually see what's rejected
+      console.error("SignWell create document error status:", swErr.response?.status);
+      console.error(
+        "SignWell create document error body:",
+        JSON.stringify(swErr.response?.data, null, 2) || swErr.message
+      );
+
+      // Don't silently pretend success — clean up the orphaned enrollment
+      // and tell the frontend it actually failed.
+      await subscriptionEnrollmentsCollection.deleteOne({ _id: result.insertedId });
+      return res.status(502).json({
+        success: false,
+        message: "Could not create the signing document. Please try again.",
+      });
     }
 
     await subscriptionEnrollmentsCollection.updateOne(
@@ -63,20 +75,19 @@ exports.createAgreement = async (req, res) => {
       { $set: { signwellDocumentId: documentId, updatedAt: new Date() } }
     );
 
-    return res.status(200).json({ success: true, enrollmentId });
+    return res.status(200).json({ success: true, enrollmentId, signingUrl });
   } catch (error) {
     console.error("Create agreement error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-
-
-// STEP 2: Frontend polling করে জানবে সাইন হয়েছে কিনা (Local + Production Dynamic Fix)
+// STEP 2: now also returns a fresh signingUrl as a fallback (e.g. after page reload,
+// or if the one returned at creation time expired)
 exports.checkAgreementStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ signed: false });
     }
@@ -89,9 +100,8 @@ exports.checkAgreementStatus = async (req, res) => {
       return res.status(404).json({ signed: false });
     }
 
-    // 1. Production optimization check (Case-insensitive)
     if (
-      enrollment.agreementSigned === true || 
+      enrollment.agreementSigned === true ||
       (enrollment.status && enrollment.status.toLowerCase() === "completed")
     ) {
       return res.status(200).json({ signed: true });
@@ -101,36 +111,39 @@ exports.checkAgreementStatus = async (req, res) => {
       try {
         const signwellRes = await axios.get(
           `https://www.signwell.com/api/v1/documents/${enrollment.signwellDocumentId}/`,
-          {
-            headers: {
-              "X-Api-Key": process.env.SIGNWELL_API_KEY,
-            },
-          }
+          { headers: { "X-Api-Key": process.env.SIGNWELL_API_KEY } }
         );
 
-        // 🔥 Case-insensitive check `.toLowerCase()` jog kora holo jate 'Completed' match hoy
         if (
-          signwellRes.data && 
-          signwellRes.data.status && 
+          signwellRes.data &&
+          signwellRes.data.status &&
           signwellRes.data.status.toLowerCase() === "completed"
         ) {
-          
-          // Database properly update kora hocchhe
           await subscriptionEnrollmentsCollection.updateOne(
             { _id: new ObjectId(id) },
             { $set: { agreementSigned: true, status: "Completed" } }
           );
-
-          // CRITICAL FIX: Ekhane return kore response pathiye deya holo jate loop break hoy!
           return res.status(200).json({ signed: true });
         }
       } catch (apiErr) {
         console.error("SignWell API Error:", apiErr.message);
       }
+
+      // Not signed yet — give the frontend a working signing URL to render/refresh.
+      let signingUrl = null;
+      try {
+        signingUrl = await signwellService.getEmbeddedSigningUrl(
+          enrollment.signwellDocumentId,
+          enrollment.email
+        );
+      } catch (e) {
+        console.error("getEmbeddedSigningUrl error:", e.message);
+      }
+
+      return res.status(200).json({ signed: false, signingUrl });
     }
 
     return res.status(200).json({ signed: !!enrollment.agreementSigned });
-
   } catch (err) {
     console.error("Check agreement status error:", err);
     return res.status(500).json({ signed: false });

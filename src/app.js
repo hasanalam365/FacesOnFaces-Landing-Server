@@ -7,6 +7,14 @@ require("dotenv").config();
 const app = express();
 
 /* =======================
+   TRUST PROXY
+   Vercel serverless functions sit behind a proxy. express-rate-limit
+   needs this to correctly read the client IP (X-Forwarded-For),
+   otherwise it can throw a ValidationError and crash the function.
+======================= */
+app.set("trust proxy", 1);
+
+/* =======================
    CORS CONFIG
 ======================= */
 const corsOptions = {
@@ -14,28 +22,19 @@ const corsOptions = {
     'http://localhost:5173',
     'https://facesonfaces.vercel.app',
     "https://www.facesonfaces.co.uk",
-    "https:facesonfaces.co.uk"
+    "https://facesonfaces.co.uk"
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Manual preflight handler (Vercel এর জন্য)
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (corsOptions.origin.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  next();
-});
-
+// Single CORS mechanism — the `cors` package already handles the
+// OPTIONS preflight response automatically. No manual header-setting
+// middleware and no app.options("*", ...) needed (that wildcard route
+// crashes on Express 4.20+ / path-to-regexp, which was the root cause
+// of the production CORS failure).
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
 
 /* =======================
    SECURITY HEADERS

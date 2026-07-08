@@ -94,6 +94,44 @@ exports.createSubscriptionEnrollment = async (req, res) => {
       `,
     });
 
+  // COMPANY OWNER EMAIL
+await transporter.sendMail({
+  from: process.env.EMAIL_USER,
+  to: "Info@facesonfaces.com",
+  subject: "New Subscription Enrollment — Payment Received",
+  html: `
+    <h2>New Subscription Enrollment</h2>
+
+    <p><strong>Name:</strong> ${safeName}</p>
+
+    <p><strong>Email:</strong> ${safeEmail}</p>
+
+    <p><strong>Phone:</strong> ${safePhone}</p>
+
+    <p><strong>Course:</strong> ${COURSE_NAME}</p>
+
+    <p><strong>Enrollment Type:</strong> Subscription</p>
+
+    <p><strong>First Payment Paid:</strong> £${
+      paymentIntent.amount / 100
+    }</p>
+
+    <p><strong>Monthly Amount:</strong> ${MONTHLY_AMOUNT}</p>
+
+    <p><strong>Status:</strong> Pending Direct Debit Setup</p>
+
+    <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
+
+    ${
+      enrollmentId
+        ? `<p><strong>Pre-Enrollment ID:</strong> ${enrollmentId}</p>`
+        : ""
+    }
+
+    <br/>
+  `,
+});
+
     // Send student confirmation email
     
  await transporter.sendMail({

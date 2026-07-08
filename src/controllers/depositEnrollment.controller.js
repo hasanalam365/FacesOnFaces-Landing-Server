@@ -112,7 +112,7 @@ exports.createDepositEnrollment = async (req, res) => {
         enrollment
       );
 
-    // ADMIN EMAIL
+    // ADMIN EMAIL dev
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.EMAIL_USER,
@@ -139,6 +139,34 @@ exports.createDepositEnrollment = async (req, res) => {
         <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
       `,
     });
+
+   // COMPANY OWNER EMAIL
+await transporter.sendMail({
+  from: process.env.EMAIL_USER,
+  to: "Info@facesonfaces.com",
+  subject:
+    "New Deposit Enrollment",
+  html: `
+    <h2>New Deposit Enrollment</h2>
+
+    <p><strong>Name:</strong> ${safeName}</p>
+
+    <p><strong>Email:</strong> ${safeEmail}</p>
+
+    <p><strong>Phone:</strong> ${safePhone}</p>
+
+    <p><strong>Course:</strong> ${COURSE_NAME}</p>
+    <p><strong>Enrollment Type:</strong> Deposit</p>
+
+    <p><strong>Deposit Paid:</strong> £${
+      paymentIntent.amount / 100
+    }</p>
+
+    <p><strong>Remaining Balance:</strong> ${REMAINING_BALANCE}</p>
+
+    <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
+  `,
+});
 
     // STUDENT EMAIL
     await transporter.sendMail({

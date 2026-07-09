@@ -200,32 +200,32 @@ exports.createEnrollment = async (req, res) => {
     });
 
   // COMPANY OWNER EMAIL
-await transporter.sendMail({
-  from: process.env.EMAIL_USER,
-  to: "Info@facesonfaces.com",
-  subject: "New Course Enrollment",
-  html: `
-    <h2>New Enrollment Received</h2>
+// await transporter.sendMail({
+//   from: process.env.EMAIL_USER,
+//   to: "Info@facesonfaces.com",
+//   subject: "New Course Enrollment",
+//   html: `
+//     <h2>New Enrollment Received</h2>
 
-    <p><b>Name:</b> ${safeName}</p>
+//     <p><b>Name:</b> ${safeName}</p>
 
-    <p><b>Email:</b> ${safeEmail}</p>
+//     <p><b>Email:</b> ${safeEmail}</p>
 
-    <p><b>Phone:</b> ${safePhone}</p>
+//     <p><b>Phone:</b> ${safePhone}</p>
 
-    <p><b>Course:</b> ${COURSE_NAME}</p>
+//     <p><b>Course:</b> ${COURSE_NAME}</p>
 
-    <p><b>Date:</b> ${safeDate || "Not Selected"}</p>
+//     <p><b>Date:</b> ${safeDate || "Not Selected"}</p>
 
-    <p><b>Location:</b> ${safeLocation || "Not Selected"}</p>
+//     <p><b>Location:</b> ${safeLocation || "Not Selected"}</p>
 
-    <p><b>Payment:</b> £${paidAmount / 100}</p>
+//     <p><b>Payment:</b> £${paidAmount / 100}</p>
 
-    <p><b>Status:</b> Paid</p>
+//     <p><b>Status:</b> Paid</p>
 
-    <p><b>Payment ID:</b> ${paymentIntentId}</p>
-  `
-});
+//     <p><b>Payment ID:</b> ${paymentIntentId}</p>
+//   `
+// });
 
 
     // Student confirmation email

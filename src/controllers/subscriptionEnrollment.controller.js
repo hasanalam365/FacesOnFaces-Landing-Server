@@ -21,7 +21,15 @@ exports.createSubscriptionEnrollment = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { paymentIntentId, enrollmentId, name, email, phone } = req.body;
+   const {
+  paymentIntentId,
+  enrollmentId,
+  name,
+  email,
+  phone,
+  selectedDate,
+  selectedLocation,
+} = req.body;
 
     if (!paymentIntentId) {
       return res.status(400).json({ message: "Payment Intent ID is required" });
@@ -44,6 +52,15 @@ exports.createSubscriptionEnrollment = async (req, res) => {
     const safeName = sanitizeHtml(name, { allowedTags: [], allowedAttributes: {} });
     const safeEmail = sanitizeHtml(email, { allowedTags: [], allowedAttributes: {} });
     const safePhone = sanitizeHtml(phone, { allowedTags: [], allowedAttributes: {} });
+    const safeDate = sanitizeHtml(selectedDate || "", {
+  allowedTags: [],
+  allowedAttributes: {},
+});
+
+const safeLocation = sanitizeHtml(selectedLocation || "", {
+  allowedTags: [],
+  allowedAttributes: {},
+});
 
    // If enrollmentId provided, update the pre-enrollment record with payment info
     if (enrollmentId && ObjectId.isValid(enrollmentId)) {
@@ -56,20 +73,24 @@ exports.createSubscriptionEnrollment = async (req, res) => {
 
       // Update existing pre-enrollment record with payment info
       await subscriptionEnrollmentsCollection.updateOne(
-        { _id: new ObjectId(enrollmentId) },
-        {
-          $set: {
-            status: "Payment Complete", // agreement no longer tracked from backend
-            agreementSigned: true,      // reflect that user confirmed signing on frontend
-            paymentIntentId,
-            paymentStatus: "Paid",
-            amount: paymentIntent.amount / 100,
-            currency: paymentIntent.currency,
-            enrolledAt: new Date(),
-            updatedAt: new Date(),
-          },
-        }
-      );
+  { _id: new ObjectId(enrollmentId) },
+  {
+    $set: {
+      status: "Payment Complete",
+      agreementSigned: true,
+      paymentIntentId,
+      paymentStatus: "Paid",
+      amount: paymentIntent.amount / 100,
+      currency: paymentIntent.currency,
+
+      selectedDate: safeDate,
+      selectedLocation: safeLocation,
+
+      enrolledAt: new Date(),
+      updatedAt: new Date(),
+    },
+  }
+);
     }
 
     // Send admin email
@@ -84,6 +105,8 @@ exports.createSubscriptionEnrollment = async (req, res) => {
         <p><strong>Phone:</strong> ${safePhone}</p>
         <p><strong>Course:</strong> ${COURSE_NAME}</p>
         <p><strong>Enrollment Type:</strong> Subscription</p>
+        <p><strong>Course Date:</strong> ${safeDate}</p>
+<p><strong>Location:</strong> ${safeLocation}</p>
         <p><strong>First Payment Paid:</strong> £${paymentIntent.amount / 100}</p>
         <p><strong>Monthly Amount:</strong> ${MONTHLY_AMOUNT}</p>
         <p><strong>Status:</strong> Pending Direct Debit Setup</p>
@@ -95,42 +118,42 @@ exports.createSubscriptionEnrollment = async (req, res) => {
     });
 
   // COMPANY OWNER EMAIL
-await transporter.sendMail({
-  from: process.env.EMAIL_USER,
-  to: "Info@facesonfaces.com",
-  subject: "New Subscription Enrollment — Payment Received",
-  html: `
-    <h2>New Subscription Enrollment</h2>
+// await transporter.sendMail({
+//   from: process.env.EMAIL_USER,
+//   to: "Info@facesonfaces.com",
+//   subject: "New Subscription Enrollment — Payment Received",
+//   html: `
+//     <h2>New Subscription Enrollment</h2>
 
-    <p><strong>Name:</strong> ${safeName}</p>
+//     <p><strong>Name:</strong> ${safeName}</p>
 
-    <p><strong>Email:</strong> ${safeEmail}</p>
+//     <p><strong>Email:</strong> ${safeEmail}</p>
 
-    <p><strong>Phone:</strong> ${safePhone}</p>
+//     <p><strong>Phone:</strong> ${safePhone}</p>
 
-    <p><strong>Course:</strong> ${COURSE_NAME}</p>
+//     <p><strong>Course:</strong> ${COURSE_NAME}</p>
 
-    <p><strong>Enrollment Type:</strong> Subscription</p>
+//     <p><strong>Enrollment Type:</strong> Subscription</p>
 
-    <p><strong>First Payment Paid:</strong> £${
-      paymentIntent.amount / 100
-    }</p>
+//     <p><strong>First Payment Paid:</strong> £${
+//       paymentIntent.amount / 100
+//     }</p>
 
-    <p><strong>Monthly Amount:</strong> ${MONTHLY_AMOUNT}</p>
+//     <p><strong>Monthly Amount:</strong> ${MONTHLY_AMOUNT}</p>
 
-    <p><strong>Status:</strong> Pending Direct Debit Setup</p>
+//     <p><strong>Status:</strong> Pending Direct Debit Setup</p>
 
-    <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
+//     <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
 
-    ${
-      enrollmentId
-        ? `<p><strong>Pre-Enrollment ID:</strong> ${enrollmentId}</p>`
-        : ""
-    }
+//     ${
+//       enrollmentId
+//         ? `<p><strong>Pre-Enrollment ID:</strong> ${enrollmentId}</p>`
+//         : ""
+//     }
 
-    <br/>
-  `,
-});
+//     <br/>
+//   `,
+// });
 
     // Send student confirmation email
     
@@ -183,6 +206,8 @@ await transporter.sendMail({
           <p><strong>Course:</strong> ${COURSE_NAME}</p>
 
           <p><strong>Enrollment Type:</strong> Subscription</p>
+          <p><strong>Course Date:</strong> ${safeDate}</p>
+<p><strong>Location:</strong> ${safeLocation}</p>
 
           <p><strong>Initial Payment:</strong> ${FIRST_PAYMENT_DISPLAY}</p>
 

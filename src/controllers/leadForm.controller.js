@@ -84,30 +84,30 @@ await transporter.sendMail({
 
 
 // COMPANY OWNER EMAIL
-await transporter.sendMail({
+// await transporter.sendMail({
 
-    from: process.env.EMAIL_USER,
+//     from: process.env.EMAIL_USER,
 
-    to:"Info@facesonfaces.com",
+//     to:"Info@facesonfaces.com",
 
-    subject:"📞 New Advisor Lead",
+//     subject:"📞 New Advisor Lead",
 
-    html:`
+//     html:`
 
-        <h2>New Lead Received</h2>
+//         <h2>New Lead Received</h2>
 
-        <p><b>Name:</b> ${fullName}</p>
+//         <p><b>Name:</b> ${fullName}</p>
 
-        <p><b>Email:</b> ${email}</p>
+//         <p><b>Email:</b> ${email}</p>
 
-        <p><b>Phone:</b> ${phone}</p>
+//         <p><b>Phone:</b> ${phone}</p>
 
-        <p><b>Best Time:</b> ${bestTime}</p>
+//         <p><b>Best Time:</b> ${bestTime}</p>
 
-        <p><b>Message:</b> ${message}</p>
+//         <p><b>Message:</b> ${message}</p>
 
-    `
-});
+//     `
+// });
 
 
 // STUDENT / LEAD CONFIRMATION EMAIL

@@ -36,14 +36,7 @@ exports.createEnrollment = async (req, res) => {
     } = req.body;
 
 
-    console.log({
-      paymentIntentId,
-      name,
-      email,
-      phone,
-      selectedDate,
-      selectedLocation
-    });
+ 
 
 
 

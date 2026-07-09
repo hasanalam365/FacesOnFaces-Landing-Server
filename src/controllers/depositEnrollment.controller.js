@@ -25,11 +25,13 @@ exports.createDepositEnrollment = async (req, res) => {
     }
 
     const {
-      paymentIntentId,
-      name,
-      email,
-      phone,
-    } = req.body;
+  paymentIntentId,
+  name,
+  email,
+  phone,
+  selectedDate,
+  selectedLocation,
+} = req.body;
 
     if (!paymentIntentId) {
       return res.status(400).json({
@@ -81,12 +83,25 @@ exports.createDepositEnrollment = async (req, res) => {
       allowedAttributes: {},
     });
 
+    const safeDate = sanitizeHtml(selectedDate || "", {
+  allowedTags: [],
+  allowedAttributes: {},
+});
+
+const safeLocation = sanitizeHtml(selectedLocation || "", {
+  allowedTags: [],
+  allowedAttributes: {},
+});
+
+
     const enrollment = {
       name: safeName,
       email: safeEmail,
       phone: safePhone,
 
       course: COURSE_NAME,
+      selectedDate: safeDate || null,
+selectedLocation: safeLocation || null,
 
       enrollmentType: "Deposit",
 
@@ -128,6 +143,11 @@ exports.createDepositEnrollment = async (req, res) => {
         <p><strong>Phone:</strong> ${safePhone}</p>
 
         <p><strong>Course:</strong> ${COURSE_NAME}</p>
+
+        <p><strong>Date:</strong> ${safeDate || "Not Selected"}</p>
+
+<p><strong>Location:</strong> ${safeLocation || "Not Selected"}</p>
+
         <p><strong>Enrollment Type:</strong> Deposit</p>
 
         <p><strong>Deposit Paid:</strong> £${
@@ -156,7 +176,12 @@ await transporter.sendMail({
     <p><strong>Phone:</strong> ${safePhone}</p>
 
     <p><strong>Course:</strong> ${COURSE_NAME}</p>
+<p><strong>Date:</strong> ${safeDate || "Not Selected"}</p>
+
+<p><strong>Location:</strong> ${safeLocation || "Not Selected"}</p>
+
     <p><strong>Enrollment Type:</strong> Deposit</p>
+
 
     <p><strong>Deposit Paid:</strong> £${
       paymentIntent.amount / 100
@@ -182,6 +207,9 @@ await transporter.sendMail({
         </p>
 
         <p><strong>Course:</strong> ${COURSE_NAME}</p>
+        <p><strong>Date:</strong> ${safeDate || "Not Selected"}</p>
+
+<p><strong>Location:</strong> ${safeLocation || "Not Selected"}</p>
 
         <p><strong>Deposit Paid:</strong> ${DEPOSIT_AMOUNT_DISPLAY}</p>
 

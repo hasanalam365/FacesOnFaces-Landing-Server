@@ -161,37 +161,37 @@ selectedLocation: safeLocation || null,
     });
 
    // COMPANY OWNER EMAIL
-// await transporter.sendMail({
-//   from: process.env.EMAIL_USER,
-//   to: "Info@facesonfaces.com",
-//   subject:
-//     "New Deposit Enrollment",
-//   html: `
-//     <h2>New Deposit Enrollment</h2>
+await transporter.sendMail({
+  from: process.env.EMAIL_USER,
+  to: "Info@facesonfaces.com",
+  subject:
+    "New Deposit Enrollment",
+  html: `
+    <h2>New Deposit Enrollment</h2>
 
-//     <p><strong>Name:</strong> ${safeName}</p>
+    <p><strong>Name:</strong> ${safeName}</p>
 
-//     <p><strong>Email:</strong> ${safeEmail}</p>
+    <p><strong>Email:</strong> ${safeEmail}</p>
 
-//     <p><strong>Phone:</strong> ${safePhone}</p>
+    <p><strong>Phone:</strong> ${safePhone}</p>
 
-//     <p><strong>Course:</strong> ${COURSE_NAME}</p>
-// <p><strong>Date:</strong> ${safeDate || "Not Selected"}</p>
+    <p><strong>Course:</strong> ${COURSE_NAME}</p>
+<p><strong>Date:</strong> ${safeDate || "Not Selected"}</p>
 
-// <p><strong>Location:</strong> ${safeLocation || "Not Selected"}</p>
+<p><strong>Location:</strong> ${safeLocation || "Not Selected"}</p>
 
-//     <p><strong>Enrollment Type:</strong> Deposit</p>
+    <p><strong>Enrollment Type:</strong> Deposit</p>
 
 
-//     <p><strong>Deposit Paid:</strong> £${
-//       paymentIntent.amount / 100
-//     }</p>
+    <p><strong>Deposit Paid:</strong> £${
+      paymentIntent.amount / 100
+    }</p>
 
-//     <p><strong>Remaining Balance:</strong> ${REMAINING_BALANCE}</p>
+    <p><strong>Remaining Balance:</strong> ${REMAINING_BALANCE}</p>
 
-//     <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
-//   `,
-// });
+    <p><strong>Payment Intent:</strong> ${paymentIntentId}</p>
+  `,
+});
 
     // STUDENT EMAIL
     await transporter.sendMail({

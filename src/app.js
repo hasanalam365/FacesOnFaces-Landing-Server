@@ -29,11 +29,6 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Single CORS mechanism — the `cors` package already handles the
-// OPTIONS preflight response automatically. No manual header-setting
-// middleware and no app.options("*", ...) needed (that wildcard route
-// crashes on Express 4.20+ / path-to-regexp, which was the root cause
-// of the production CORS failure).
 app.use(cors(corsOptions));
 
 /* =======================
@@ -51,9 +46,6 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Polling ও webhook endpoint-কে global limit থেকে exempt করা হলো
-    // (এগুলোর নিজস্ব আলাদা limiter/protection আছে — polling route এ pollingLimiter,
-    // webhook route এ secret-token protection + SignWell API re-verification)
     return (
       req.path.startsWith("/subscription-agreement-status") ||
       req.path.startsWith("/signwell-agreement-webhook")
@@ -73,8 +65,6 @@ app.use(globalLimiter);
 
 /* =======================
    GOCARDLESS WEBHOOK — MUST COME BEFORE express.json()
-   GoCardless signs the raw request body. If express.json() parses it
-   first, the raw bytes are lost and signature verification will fail.
 ======================= */
 app.use("/", require("./routes/gocardless.webhook.routes"));
 
@@ -85,9 +75,12 @@ app.use(express.json({ limit: "5mb" }));
 
 /* =======================
    ROUTES
+   NOTE: routes/signwell.routes.js was removed — it wrote to an
+   unrelated Mongoose collection and its path never matched the
+   real webhook URL. The only live SignWell webhook handler is now
+   the secret-protected one in subscriptionAgreement.routes.js.
 ======================= */
 app.use("/", require("./routes/auth.routes"));
-app.use("/", require("./routes/signwell.routes"));
 app.use("/", require("./routes/gocardless.routes"));
 app.use("/", require("./routes/subscriptionAgreement.routes"));
 app.use("/", strictLimiter, require("./routes/payments.routes"));
@@ -96,7 +89,6 @@ app.use("/", strictLimiter, require("./routes/depositEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/subscriptionPreEnrollment.routes"));
 app.use("/", strictLimiter, require("./routes/leadForm.routes"));
-
 
 /* =======================
    ROOT

@@ -144,7 +144,7 @@ await transporter.sendMail({
 
         <p style="font-size:16px;line-height:1.8;color:#555;">
           We have successfully received your enquiry and one of our
-          advisors will contact you as soon as possible.
+          advisors will contact you during your selected time slot.
         </p>
 
 

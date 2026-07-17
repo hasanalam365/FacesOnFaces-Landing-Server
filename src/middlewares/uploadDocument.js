@@ -25,8 +25,9 @@ const upload = multer({
 });
 
 const uploadDocumentFields = upload.fields([
-  { name: "frontFile", maxCount: 1 },
-  { name: "backFile", maxCount: 1 },
+  { name: "addressProofFile", maxCount: 1 },
+  { name: "identityFrontFile", maxCount: 1 },
+  { name: "identityBackFile", maxCount: 1 },
 ]);
 
 const handleDocumentUpload = (req, res, next) => {

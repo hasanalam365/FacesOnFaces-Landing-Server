@@ -12,8 +12,9 @@ const preEnrollmentValidation = [
   body("name").trim().notEmpty().isLength({ max: 100 }).escape(),
   body("email").trim().isEmail().normalizeEmail(),
   body("phone").trim().notEmpty().isLength({ max: 20 }),
-  body("documentType").trim().notEmpty().isIn(["nid", "passport", "driving_license", "electricity_bill"]),
-  body("documentNumber").optional().trim().isLength({ max: 50 }).escape(),
+  body("addressProofType").trim().notEmpty().isIn(["utility_bill", "bank_statement"]),
+  body("identityProofType").trim().notEmpty().isIn(["passport", "driving_license"]),
+  body("identityProofNumber").optional().trim().isLength({ max: 50 }).escape(),
   body("enrollmentId").optional().trim().isString(),
 ];
 

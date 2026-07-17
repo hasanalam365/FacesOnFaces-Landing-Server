@@ -9,7 +9,8 @@ const subscriptionEnrollmentsCollection = client
   .db("facesOnFaces")
   .collection("subscriptionEnrollments");
 
-const ALLOWED_DOC_TYPES = ["nid", "passport", "driving_license", "electricity_bill"];
+const ADDRESS_PROOF_TYPES = ["utility_bill", "bank_statement"];
+const IDENTITY_PROOF_TYPES = ["passport", "driving_license"];
 const ALLOWED_MIMETYPES = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -44,7 +45,15 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, phone, documentType, documentNumber, enrollmentId } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      addressProofType,
+      identityProofType,
+      identityProofNumber,
+      enrollmentId,
+    } = req.body;
 
     if (enrollmentId) {
       if (!ObjectId.isValid(enrollmentId)) {
@@ -61,62 +70,123 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       }
     }
 
-    if (!ALLOWED_DOC_TYPES.includes(documentType)) {
-      return res.status(400).json({ message: "Invalid document type." });
+    if (!ADDRESS_PROOF_TYPES.includes(addressProofType)) {
+      return res.status(400).json({ message: "Invalid address proof document type." });
+    }
+    if (!IDENTITY_PROOF_TYPES.includes(identityProofType)) {
+      return res.status(400).json({ message: "Invalid identity proof document type." });
     }
 
-    const frontFile = req.files?.frontFile?.[0];
-    if (!frontFile) {
-      return res.status(400).json({ message: "Document upload is required." });
+    const addressProofFile = req.files?.addressProofFile?.[0];
+    if (!addressProofFile) {
+      return res.status(400).json({ message: "Address proof document is required." });
+    }
+    if (!ALLOWED_MIMETYPES.includes(addressProofFile.mimetype)) {
+      return res.status(400).json({ message: "Invalid address proof file type." });
+    }
+    if (addressProofFile.size > MAX_SIZE_BYTES) {
+      return res.status(400).json({ message: "Address proof file too large. Max 10MB." });
     }
 
-    if (!ALLOWED_MIMETYPES.includes(frontFile.mimetype)) {
-      return res.status(400).json({ message: "Invalid file type." });
+    const identityFrontFile = req.files?.identityFrontFile?.[0];
+    if (!identityFrontFile) {
+      return res.status(400).json({ message: "Identity proof document is required." });
     }
-    if (frontFile.size > MAX_SIZE_BYTES) {
-      return res.status(400).json({ message: "File too large. Max 10MB." });
+    if (!ALLOWED_MIMETYPES.includes(identityFrontFile.mimetype)) {
+      return res.status(400).json({ message: "Invalid identity proof file type." });
+    }
+    if (identityFrontFile.size > MAX_SIZE_BYTES) {
+      return res.status(400).json({ message: "Identity proof file too large. Max 10MB." });
     }
 
-    const backFile = req.files?.backFile?.[0];
-    if (backFile) {
-      if (!ALLOWED_MIMETYPES.includes(backFile.mimetype)) {
-        return res.status(400).json({ message: "Invalid back file type." });
+    const identityBackFile = req.files?.identityBackFile?.[0];
+    if (identityProofType === "driving_license" && !identityBackFile) {
+      return res.status(400).json({ message: "Back side of the driving licence is required." });
+    }
+    if (identityBackFile) {
+      if (!ALLOWED_MIMETYPES.includes(identityBackFile.mimetype)) {
+        return res.status(400).json({ message: "Invalid identity proof back file type." });
       }
-      if (backFile.size > MAX_SIZE_BYTES) {
-        return res.status(400).json({ message: "Back file too large. Max 10MB." });
+      if (identityBackFile.size > MAX_SIZE_BYTES) {
+        return res.status(400).json({ message: "Identity proof back file too large. Max 10MB." });
       }
     }
 
     const safeName = sanitizeHtml(name, { allowedTags: [], allowedAttributes: {} });
     const safeEmail = sanitizeHtml(email, { allowedTags: [], allowedAttributes: {} });
     const safePhone = sanitizeHtml(phone, { allowedTags: [], allowedAttributes: {} });
-    const safeDocNumber = documentNumber
-      ? sanitizeHtml(documentNumber, { allowedTags: [], allowedAttributes: {} })
+    const safeIdentityNumber = identityProofNumber
+      ? sanitizeHtml(identityProofNumber, { allowedTags: [], allowedAttributes: {} })
       : null;
 
-    let frontImageUrl = null;
-    let backImageUrl = null;
+    let addressImageUrl = null;
+    let identityFrontImageUrl = null;
+    let identityBackImageUrl = null;
 
     try {
-      frontImageUrl = await uploadToImgBB(
-        frontFile.buffer,
-        frontFile.originalname,
-        frontFile.mimetype
+      addressImageUrl = await uploadToImgBB(
+        addressProofFile.buffer,
+        addressProofFile.originalname,
+        addressProofFile.mimetype
       );
     } catch (imgErr) {
-      console.error("ImgBB front upload error:", imgErr.message);
+      console.error("ImgBB address proof upload error:", imgErr.message);
     }
 
-    if (backFile) {
+    try {
+      identityFrontImageUrl = await uploadToImgBB(
+        identityFrontFile.buffer,
+        identityFrontFile.originalname,
+        identityFrontFile.mimetype
+      );
+    } catch (imgErr) {
+      console.error("ImgBB identity front upload error:", imgErr.message);
+    }
+
+    if (identityBackFile) {
       try {
-        backImageUrl = await uploadToImgBB(
-          backFile.buffer,
-          backFile.originalname,
-          backFile.mimetype
+        identityBackImageUrl = await uploadToImgBB(
+          identityBackFile.buffer,
+          identityBackFile.originalname,
+          identityBackFile.mimetype
         );
       } catch (imgErr) {
-        console.error("ImgBB back upload error:", imgErr.message);
+        console.error("ImgBB identity back upload error:", imgErr.message);
       }
+    }
+
+    const identityVerification = {
+      addressProof: {
+        type: addressProofType,
+        fileName: addressProofFile.originalname,
+        fileMimeType: addressProofFile.mimetype,
+        fileSizeBytes: addressProofFile.size,
+        imageUrl: addressImageUrl,
+      },
+      identityProof: {
+        type: identityProofType,
+        number: safeIdentityNumber,
+        frontFileName: identityFrontFile.originalname,
+        frontFileMimeType: identityFrontFile.mimetype,
+        frontImageUrl: identityFrontImageUrl,
+        backFileName: identityBackFile?.originalname || null,
+        backFileMimeType: identityBackFile?.mimetype || null,
+        backImageUrl: identityBackImageUrl,
+      },
+    };
+
+    if (enrollmentId && ObjectId.isValid(enrollmentId)) {
+      await subscriptionEnrollmentsCollection.updateOne(
+        { _id: new ObjectId(enrollmentId) },
+        {
+          $set: {
+            identityVerification,
+            status: "Pending Payment",
+            updatedAt: new Date(),
+          },
+        }
+      );
+      return res.status(200).json({ success: true, enrollmentId });
     }
 
     const preEnrollment = {
@@ -126,37 +196,13 @@ exports.createSubscriptionPreEnrollment = async (req, res) => {
       course: "14 Certificate Fast-Track Course",
       enrollmentType: "Subscription",
       status: "Pending Signature",
-      identityDocument: {
-        type: documentType,
-        number: safeDocNumber,
-        frontFileName: frontFile.originalname,
-        frontFileMimeType: frontFile.mimetype,
-        frontFileSizeBytes: frontFile.size,
-        frontImageUrl: frontImageUrl,
-        backFileName: backFile?.originalname || null,
-        backFileMimeType: backFile?.mimetype || null,
-        backImageUrl: backImageUrl,
-      },
+      identityVerification,
       agreementSigned: false,
       paymentIntentId: null,
       paymentStatus: "Pending",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-
-    if (enrollmentId && ObjectId.isValid(enrollmentId)) {
-      await subscriptionEnrollmentsCollection.updateOne(
-        { _id: new ObjectId(enrollmentId) },
-        {
-          $set: {
-            identityDocument: preEnrollment.identityDocument,
-            status: "Pending Payment",
-            updatedAt: new Date(),
-          },
-        }
-      );
-      return res.status(200).json({ success: true, enrollmentId });
-    }
 
     const result = await subscriptionEnrollmentsCollection.insertOne(preEnrollment);
     return res.status(200).json({

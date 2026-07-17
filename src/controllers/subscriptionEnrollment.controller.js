@@ -11,7 +11,7 @@ const subscriptionEnrollmentsCollection = client
   .collection("subscriptionEnrollments");
 
 const COURSE_NAME = "14 Certificate Fast-Track Course";
-const FIRST_PAYMENT_DISPLAY = "£250";
+const FIRST_PAYMENT_DISPLAY = "£350";
 const MONTHLY_AMOUNT = "£100";
 
 exports.createSubscriptionEnrollment = async (req, res) => {

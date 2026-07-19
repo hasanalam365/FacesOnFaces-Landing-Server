@@ -193,33 +193,7 @@ await transporter.sendMail({
   `,
 });
 
-    // STUDENT EMAIL
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: safeEmail,
-      subject:
-        "Deposit Payment Confirmed",
-      html: `
-        <h2>Thank You ${safeName}</h2>
-
-        <p>
-          Your deposit payment has been received successfully.
-        </p>
-
-        <p><strong>Course:</strong> ${COURSE_NAME}</p>
-        <p><strong>Date:</strong> ${safeDate || "Not Selected"}</p>
-
-<p><strong>Location:</strong> ${safeLocation || "Not Selected"}</p>
-
-        <p><strong>Deposit Paid:</strong> ${DEPOSIT_AMOUNT_DISPLAY}</p>
-
-        <p><strong>Remaining Balance:</strong> ${REMAINING_BALANCE}</p>
-
-        <p>
-          Our team will contact you shortly regarding the next steps.
-        </p>
-      `,
-    });
+   
 
      // confirm mail to user
    await transporter.sendMail({
